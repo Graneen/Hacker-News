@@ -1,81 +1,89 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { CircularProgress, Button, Typography, Box, Alert } from '@mui/material';
 import axios from 'axios';
-import { Typography, Button, List } from '@mui/material';
-import Comment from '../../components/comment/Comment';
+import CommentComponent from '../../components/commentComponent/CommentComponent';
+import Header from '../../components/header/Header';
 
-interface Comment {
-    id: number;
-    by: string;
-    text: string;
-    kids?: Comment[];
-}
 
-interface NewsDetailData {
-    title: string;
-    url: string;
-    by: string;
-    time: number;
-    descendants: number;
-    kids?: number[];
-}
 
 const NewsDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const [news, setNews] = useState<NewsDetailData | null>(null);
+    const [news, setNews] = useState<any | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
-    const [loadingComments, setLoadingComments] = useState<boolean>(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchNewsDetails = async () => {
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
         try {
-            const response = await axios.get<NewsDetailData>(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`);
-            setNews(response.data);
-            if (response.data.kids) {
-                await fetchComments(response.data.kids);
-            }
+            const newsResponse = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`);
+            setNews(newsResponse.data);
+            const commentsData = await Promise.all(
+                newsResponse.data.kids?.map((kid: number) => axios.get(`https://hacker-news.firebaseio.com/v0/item/${kid}.json?print=pretty`)) || []
+            );
+            setComments(commentsData.map(comment => comment.data).filter(c => c));
         } catch (error) {
-            console.error('Ошибка при загрузке детали новости', error);
-        }
-    };
-
-    const fetchComments = async (commentIds: number[]) => {
-        setLoadingComments(true);
-        try {
-            const commentsPromises = commentIds.map(id => axios.get<Comment>(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`));
-            const commentsResponses = await Promise.all(commentsPromises);
-            const fetchedComments = commentsResponses.map(res => res.data).filter(item => item);
-            setComments(fetchedComments);
-        } catch (error) {
-            console.error('Ошибка при загрузке комментариев', error);
+            setError("Error fetching news. Try again later.");
+            console.error("Error fetching news:", error);
         } finally {
-            setLoadingComments(false);
+            setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchNewsDetails();
+        fetchData();
     }, [id]);
-
     return (
-        <div>
-            {news && (
-                <>
-                    <Link to="/">Назад к новостям</Link>
-                    <Typography variant="h4">{news.title}</Typography>
-                    <Typography variant="h6">Подробнее:<a href={news.url}>{news.url}</a></Typography>
-                    <Typography variant="body1">Автор: {news.by}</Typography>
-                    <Typography variant="body1">Дата: {new Date(news.time * 1000).toLocaleString()}</Typography>
-                    <Typography variant="body1">Количество комментариев: {news.descendants}</Typography>
-                    <Button variant="contained" onClick={() => fetchComments((news.kids || []))} disabled={loadingComments}>
-                        {loadingComments ? 'Загружаем комментарии...' : 'Обновить комментарии'}
-                    </Button>
+        <Box sx={{ backgroundColor: 'gainsboro' }}>
+            <Header />
+            <Box sx={{ maxWidth: 800, margin: '0 auto', padding: 4 }}>
+                {loading && <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100vh',
+                }}>
+                    <CircularProgress />
+                </Box>}
+                {error && <Alert severity="error">{error}</Alert>}
+                {!loading && !error && news && (
+                    <>
+                        <Box sx={{ padding: 3, backgroundColor: '#e3f2fd', borderRadius: '8px', boxShadow: 1, marginBottom: 2 }}>
+                            <Typography variant="h4">{news.title}</Typography>
+                            {news.url && (
+                                <Typography variant="h6">Read more at:
+                                <a
+                                        className="news-detail-block__link"
+                                        href={news.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {news.url}
+                                    </a>
+                                </Typography>
+                            )}
+                            <Typography variant="subtitle1">By: {news.by}</Typography>
+                            <Typography variant="subtitle2">Date: {new Date(news.time * 1000).toLocaleString()}</Typography>
+                            <Typography variant="subtitle2">Likes: {news.descendants || 0}</Typography>
+                        </Box>
 
-                    <List>
-                        <Comment comments={comments} fetchReplies={fetchComments} />
-                    </List>
-                </>
-            )}
-        </div>
+                        <Box sx={{ marginBottom: 2 }}>
+                            <Button variant="contained" onClick={fetchData} sx={{ marginRight: 1 }}>Refresh comments</Button>
+                            <Button component={Link} to="/" variant="outlined">Back to the Mainpage</Button>
+                        </Box>
+
+                        <Typography variant="h5" sx={{ marginBottom: 2 }}>Comments</Typography>
+                        {comments.map(comment => (
+                            <div>
+                                <CommentComponent key={comment.id} comment={comment} />
+                            </div>
+                        ))}
+                    </>
+                )}
+            </Box>
+        </Box>
     );
 };
 

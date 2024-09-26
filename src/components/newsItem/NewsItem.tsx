@@ -9,9 +9,10 @@ interface NewsItemProps {
   score: number;
   by: string;
   time: number;
+  kids: string;
 }
 
-const NewsItem: React.FC<NewsItemProps> = ({ id, title, score, by, time }) => {
+const NewsItem: React.FC<NewsItemProps> = ({ id, title, score, by, time, kids }) => {
     const navigate = useNavigate();
 
 
@@ -22,7 +23,7 @@ const NewsItem: React.FC<NewsItemProps> = ({ id, title, score, by, time }) => {
         primary={title}
         secondary={
           <Typography component="span" variant="body2" color="text.primary">
-            {`Рейтинг: ${score}, Автор: ${by}, Дата: ${new Date(time * 1000).toLocaleString()}`}
+            {`Rating: ${score}, Author: ${by}, Date: ${new Date(time * 1000).toLocaleString()}, Comments: ${kids ? kids.length : 0}`}
           </Typography>
         }
       />

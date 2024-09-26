@@ -1,58 +1,52 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { List, Button } from '@mui/material';
+import React, { useEffect } from 'react';
+import { fetchNews } from '../../redux/reducers/newsSlice';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux';
+import { List, Button, CircularProgress, Box } from '@mui/material';
 import NewsItem from '../../components/newsItem/NewsItem';
-import Header from '../../components/Header';
+import Header from '../../components/header/Header';
 
 import './newsList.css';
 
-interface NewsItemData {
-  id: number;
-  title: string;
-  score: number;
-  by: string;
-  time: number;
-}
 
 const NewsList: React.FC = () => {
-  const [news, setNews] = useState<NewsItemData[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const fetchNews = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get<number[]>('https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty');
-      const topIds = response.data.slice(0, 100);
-      const newsPromises = topIds.map(id => axios.get<NewsItemData>(`https://hacker-news.firebaseio.com/v0/item/${id}.json?print=pretty`));
-      const newsResponses = await Promise.all(newsPromises);
-      const newsData = newsResponses.map(res => res.data).filter(item => item);
-
-      setNews(newsData);
-    } catch (error) {
-      console.error('Упс, ошибка при получении новостей', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const dispatch = useAppDispatch();
+  const news = [...useAppSelector((state: { news: any }) => state.news.items)];
+  const loading = useAppSelector((state: { news: any }) => state.news.loading);
 
   useEffect(() => {
-    fetchNews();
-    const intervalId = setInterval(fetchNews, 60000);
-    return () => clearInterval(intervalId);
-  }, []);
+    dispatch(fetchNews());
+    const interval = setInterval(() => dispatch(fetchNews()), 60000);
+    return () => clearInterval(interval);
+  }, [dispatch]);
+
+
+  function feedUpdater() {
+    dispatch(fetchNews());
+  }
 
   return (
     <>
       <Header />
       <div className="main-back">
-        <Button variant="contained" onClick={fetchNews} disabled={loading}  sx={{ marginTop: '5vh'}}>
-          {loading ? 'Обновление...' : 'Обновить список новостей'}
+        <Button variant="contained" onClick={() => feedUpdater()} disabled={loading} sx={{ marginTop: '5vh' }}>
+          {loading ? 'Updating...' : 'Update the newsfeed'}
         </Button>
-        <List>
-          {news.sort((a, b) => b.time - a.time).map(item => (
-            <NewsItem key={item.id} {...item} />
-          ))}
-        </List>
+        {loading ?
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}>
+            <CircularProgress />
+          </Box>
+          :
+          <List>
+            {news.sort((a, b) => b.time - a.time).map(item => (
+              <NewsItem key={item.id} {...item} />
+            ))}
+          </List>
+        }
       </div>
     </>
   );
