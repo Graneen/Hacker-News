@@ -75,11 +75,14 @@ const NewsDetail: React.FC = () => {
                         </Box>
 
                         <Typography variant="h5" sx={{ marginBottom: 2 }}>Comments</Typography>
-                        {comments.map(comment => (
+                        {comments.length > 0 ? comments.map(comment => (
                             <div>
                                 <CommentComponent key={comment.id} comment={comment} />
                             </div>
-                        ))}
+                        ))
+                    :
+                                            <Typography variant="h6" sx={{ marginBottom: 2}}>No comments yet</Typography>
+                    }
                     </>
                 )}
             </Box>
